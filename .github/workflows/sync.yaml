@@ -17,11 +17,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Configure 1Password
+        uses: 1password/load-secrets-action/configure@v1
+        with:
+          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+
+      - name: Load GitHub App credentials from 1Password
+        id: load-secrets
+        uses: 1password/load-secrets-action@v3
+        env:
+          APP_ID: op://surefireops/github_actions/github_app_app_id
+          PRIVATE_KEY: op://surefireops/github_actions/github_app_private_key
+
       - uses: actions/create-github-app-token@v2
         id: app-token
         with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.PRIVATE_KEY }}
+          app-id: ${{ steps.load-secrets.outputs.APP_ID }}
+          private-key: ${{ steps.load-secrets.outputs.PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
       - name: Sync with dependent repositories
