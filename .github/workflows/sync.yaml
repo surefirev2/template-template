@@ -74,6 +74,13 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "*Actual sync runs only on push to \`main\`.*" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Generate diff of synced files (PR base → head)
+        if: github.event_name == 'pull_request' && steps.files.outputs.count != '0'
+        run: |
+          # Checkout yields merge commit: HEAD^1 = base, HEAD^2 = PR head
+          FILES=$(tr '\n' ' ' < files_to_sync.txt)
+          git diff HEAD^1 HEAD^2 -- $FILES > sync_diff.txt 2>/dev/null || true
+
       - name: Upsert template sync preview comment on PR
         if: github.event_name == 'pull_request'
         env:
@@ -81,6 +88,7 @@ jobs:
           REPOS: ${{ steps.config.outputs.repos_list }}
           COUNT: ${{ steps.files.outputs.count }}
           FILES_LIST: files_to_sync.txt
+          DIFF_FILE: sync_diff.txt
         run: bash .github/scripts/template-sync-pr-comment.sh "${{ github.event.pull_request.number }}"
 
       - name: Sync to dependents and open PR

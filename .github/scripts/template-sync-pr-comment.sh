@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Upsert a sticky comment on a PR with template sync preview (target repos + file list).
-# Env: GH_TOKEN (or gh auth), REPOS (space-separated), COUNT (file count), FILES_LIST (path to file).
+# Upsert a sticky comment on a PR with template sync preview (target repos, file list, and diff of synced files).
+# Env: GH_TOKEN (or gh auth), REPOS (space-separated), COUNT (file count), FILES_LIST (path to file),
+#      DIFF_FILE (optional path to diff of synced files, e.g. from git diff base head -- $(cat FILES_LIST)).
 # Usage: template-sync-pr-comment.sh <pr_number> [--repo OWNER/REPO]
 set -euo pipefail
 
@@ -20,6 +21,9 @@ done
 REPOS="${REPOS:-none}"
 COUNT="${COUNT:-0}"
 FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
+DIFF_FILE="${DIFF_FILE:-}"
+# GitHub issue comment body limit is 65536 characters; leave headroom for markdown
+MAX_DIFF_CHARS=60000
 MARKER="<!-- template-sync-preview -->"
 
 BODY_FILE=$(mktemp)
@@ -39,6 +43,22 @@ trap 'rm -f "$BODY_FILE"' EXIT
     echo ""
     echo '```'
     cat "$FILES_LIST"
+    echo '```'
+    echo ""
+    echo "</details>"
+  fi
+  if [[ -n "$DIFF_FILE" && -f "$DIFF_FILE" && -s "$DIFF_FILE" ]]; then
+    echo ""
+    echo "<details><summary>Diff of synced files (base → PR head)</summary>"
+    echo ""
+    echo '```diff'
+    if [[ $(wc -c < "$DIFF_FILE") -gt $MAX_DIFF_CHARS ]]; then
+      head -c "$MAX_DIFF_CHARS" "$DIFF_FILE"
+      echo ""
+      echo "... (truncated)"
+    else
+      cat "$DIFF_FILE"
+    fi
     echo '```'
     echo ""
     echo "</details>"
