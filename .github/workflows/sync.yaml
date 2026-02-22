@@ -81,17 +81,8 @@ jobs:
         if: github.event_name == 'pull_request' && steps.files.outputs.count != '0'
         run: |
           # Checkout yields merge commit: HEAD^1 = base, HEAD^2 = PR head (requires fetch-depth >= 2)
-          # Per-file diff so every synced file appears (changed files show diff, unchanged show "No changes")
-          : > sync_diff.txt
-          while IFS= read -r f; do
-            [[ -z "$f" ]] && continue
-            d=$(git diff HEAD^1 HEAD^2 -- "$f" 2>/dev/null || true)
-            if [[ -n "$d" ]]; then
-              echo "$d" >> sync_diff.txt
-            else
-              echo "# No changes: $f" >> sync_diff.txt
-            fi
-          done < files_to_sync.txt
+          FILES=$(tr '\n' ' ' < files_to_sync.txt)
+          git diff HEAD^1 HEAD^2 -- $FILES > sync_diff.txt 2>/dev/null || echo -n '' > sync_diff.txt
           echo "Diff lines: $(wc -l < sync_diff.txt)"
 
       - name: Upsert template sync preview comment on PR
