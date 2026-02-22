@@ -3,9 +3,8 @@
 # - exclude_paths: paths in the template repo that are not synced to dependents (blacklist).
 
 repositories:
-  - "template-1-*"
-  - template-cursor
-  # Mix explicit names and glob patterns; patterns are resolved via gh repo list.
+  - template-1-terraform
+  # Add more repo names or glob patterns (e.g. template-1-*) as needed; patterns resolved via gh repo list.
 
 exclude_paths:
   - .gitignore
