@@ -1,4 +1,4 @@
-# .github/workflows/template-sync.yml
+# Template Sync: on push to main, create a PR in each dependent (no direct push to main).
 name: Template Sync
 
 on:
@@ -9,23 +9,41 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   template-sync:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - uses: actions/create-github-app-token@v2
+      - name: Create GitHub App token
         id: app-token
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
-      - name: Sync with dependent repositories
-        uses: ahmadnassri/action-template-repository-sync@v2
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          config: .github/template-sync.yml
+      - name: Resolve dependent repos and exclusions
+        id: config
+        env:
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: bash .github/scripts/template-sync-resolve-config.sh --config .github/template-sync.yml --org "$GITHUB_REPOSITORY_OWNER" --out-dir .
+
+      - name: Build list of files to sync
+        id: files
+        run: bash .github/scripts/template-sync-build-file-list.sh --exclusions-file exclusions.txt --output files_to_sync.txt
+
+      - name: Sync to dependents and open PR
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ORG: ${{ github.repository_owner }}
+          BRANCH: chore/template-sync
+          REPOS_LIST: ${{ steps.config.outputs.repos_list }}
+          FILES_LIST: files_to_sync.txt
+        run: bash .github/scripts/template-sync-push-pr.sh
+        if: ${{ steps.config.outputs.repos_list != '' && steps.files.outputs.count != '0' }}

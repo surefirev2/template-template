@@ -1,10 +1,17 @@
-additional:
-  - "template-1-*"
+# Template sync: downstream repos and paths to exclude from sync.
+# - repositories: exact repo names or glob patterns (e.g. template-1-*); patterns are resolved via gh repo list.
+# - exclude_paths: paths in the template repo that are not synced to dependents (blacklist).
 
-files:
-  - "!.gitignore"
-  - "!.github/template-sync.yml"
-  - "!.pre-commit-config.yaml"
-  - "!Makefile"
-  - "!.github/dependabot.yml"
-  - "!.github/workflows/sync.yaml"
+repositories:
+  - "template-1-*"
+  - template-cursor
+  # Mix explicit names and glob patterns; patterns are resolved via gh repo list.
+
+exclude_paths:
+  - .gitignore
+  - .github/template-sync.yml
+  - .github/scripts
+  - .pre-commit-config.yaml
+  - Makefile
+  - .github/dependabot.yml
+  - .github/workflows/sync.yaml
