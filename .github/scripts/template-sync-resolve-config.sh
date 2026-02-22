@@ -20,8 +20,8 @@ done
 [[ -n "$ORG" ]] || { echo "ORG required (--org or GITHUB_REPOSITORY_OWNER)" >&2; exit 1; }
 [[ -f "$CONFIG" ]] || { echo "Config not found: $CONFIG" >&2; exit 1; }
 
-# Parse repositories: literal names and glob patterns
-REPOS_RAW=$(grep -A 100 '^repositories:' "$CONFIG" 2>/dev/null | grep -E '^\s*-\s*' | sed -E 's/^\s*-\s*"?([^"]+)"?.*/\1/' | tr '\n' ' ')
+# Parse only the repositories section (stop at next top-level key like exclude_paths:)
+REPOS_RAW=$(awk '/^repositories:/{flag=1;next} flag && /^[a-zA-Z_][a-zA-Z0-9_-]*:/{exit} flag' "$CONFIG" 2>/dev/null | grep -E '^\s*-\s*' | sed -E 's/^\s*-\s*"?([^"]+)"?.*/\1/' | tr '\n' ' ')
 REPOS=""
 for entry in $REPOS_RAW; do
   [[ -z "$entry" ]] && continue
@@ -36,8 +36,8 @@ for entry in $REPOS_RAW; do
 done
 REPOS=$(echo "$REPOS" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
 
-# Parse exclude_paths
-EXCLUSIONS=$(grep -A 200 '^exclude_paths:' "$CONFIG" 2>/dev/null | grep -E '^\s*-\s*' | sed -E 's/^\s*-\s*"?([^"]+)"?.*/\1/' | grep -v '^\s*$' || true)
+# Parse only the exclude_paths section (stop at next top-level key)
+EXCLUSIONS=$(awk '/^exclude_paths:/{flag=1;next} flag && /^[a-zA-Z_][a-zA-Z0-9_-]*:/{exit} flag' "$CONFIG" 2>/dev/null | grep -E '^\s*-\s*' | sed -E 's/^\s*-\s*"?([^"]+)"?.*/\1/' | grep -v '^\s*$' || true)
 mkdir -p "$OUT_DIR"
 echo "$EXCLUSIONS" > "$OUT_DIR/exclusions.txt"
 
