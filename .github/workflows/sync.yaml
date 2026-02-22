@@ -26,8 +26,8 @@ jobs:
         id: load-secrets
         uses: 1password/load-secrets-action@v3
         env:
-          APP_ID: op://surefireops/github_actions/github_app_app_id
-          PRIVATE_KEY: op://surefireops/github_actions/github_app_private_key
+          APP_ID: op://surefireops/github_actions_secrets/github_app_app_id
+          PRIVATE_KEY: op://surefireops/github_actions_secrets/github_app_private_key
 
       - uses: actions/create-github-app-token@v2
         id: app-token
