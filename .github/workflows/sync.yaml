@@ -74,6 +74,15 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "*Actual sync runs only on push to \`main\`.*" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Upsert template sync preview comment on PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOS: ${{ steps.config.outputs.repos_list }}
+          COUNT: ${{ steps.files.outputs.count }}
+          FILES_LIST: files_to_sync.txt
+        run: bash .github/scripts/template-sync-pr-comment.sh "${{ github.event.pull_request.number }}"
+
       - name: Sync to dependents and open PR
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && steps.config.outputs.repos_list != '' && steps.files.outputs.count != '0'
         env:
