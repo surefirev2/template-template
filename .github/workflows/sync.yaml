@@ -31,6 +31,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Need merge commit and both parents so "Generate diff" can run git diff HEAD^1 HEAD^2
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
 
       # Create token for push and workflow_dispatch (needed for real sync; harmless for dry-run)
       - name: Create GitHub App token
@@ -77,9 +80,10 @@ jobs:
       - name: Generate diff of synced files (PR base → head)
         if: github.event_name == 'pull_request' && steps.files.outputs.count != '0'
         run: |
-          # Checkout yields merge commit: HEAD^1 = base, HEAD^2 = PR head
+          # Checkout yields merge commit: HEAD^1 = base, HEAD^2 = PR head (requires fetch-depth >= 2)
           FILES=$(tr '\n' ' ' < files_to_sync.txt)
-          git diff HEAD^1 HEAD^2 -- $FILES > sync_diff.txt 2>/dev/null || true
+          git diff HEAD^1 HEAD^2 -- $FILES > sync_diff.txt || echo -n '' > sync_diff.txt
+          echo "Diff lines: $(wc -l < sync_diff.txt)"
 
       - name: Upsert template sync preview comment on PR
         if: github.event_name == 'pull_request'
