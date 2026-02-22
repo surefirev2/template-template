@@ -8,6 +8,18 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no clone/push/PR)'
+        required: false
+        default: false
+        type: boolean
+      draft_pr:
+        description: 'Create PRs as draft'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -20,7 +32,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Create token for push and workflow_dispatch (needed for real sync; harmless for dry-run)
       - name: Create GitHub App token
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         id: app-token
         uses: actions/create-github-app-token@v2
         with:
@@ -38,12 +52,36 @@ jobs:
         id: files
         run: bash .github/scripts/template-sync-build-file-list.sh --exclusions-file exclusions.txt --output files_to_sync.txt
 
+      - name: Preview sync impact
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "## Template sync preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          REPOS="${{ steps.config.outputs.repos_list }}"
+          COUNT="${{ steps.files.outputs.count }}"
+          echo "**Target repositories:** \`${REPOS:-none}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Files to sync:** $COUNT" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f files_to_sync.txt && -s files_to_sync.txt ]]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>File list</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat files_to_sync.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "*Actual sync runs only on push to \`main\`.*" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Sync to dependents and open PR
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && steps.config.outputs.repos_list != '' && steps.files.outputs.count != '0'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ORG: ${{ github.repository_owner }}
           BRANCH: chore/template-sync
           REPOS_LIST: ${{ steps.config.outputs.repos_list }}
           FILES_LIST: files_to_sync.txt
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}
+          DRAFT_PR: ${{ github.event_name == 'workflow_dispatch' && inputs.draft_pr && '1' || '' }}
         run: bash .github/scripts/template-sync-push-pr.sh
-        if: ${{ steps.config.outputs.repos_list != '' && steps.files.outputs.count != '0' }}

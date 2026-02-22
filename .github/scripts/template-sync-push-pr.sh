@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
 # For each dependent repo: clone, copy included files, push branch, create or update PR.
-# Env: ORG, GH_TOKEN, BRANCH (default chore/template-sync), REPOS_LIST (space-separated), FILES_LIST (path, default files_to_sync.txt).
-# Usage: template-sync-push-pr.sh
+# Env: ORG, GH_TOKEN (not required if DRY_RUN=1), BRANCH, REPOS_LIST, FILES_LIST.
+# Options: --dry-run (no clone/push/pr), --draft (create PR as draft).
+# Usage: template-sync-push-pr.sh [--dry-run] [--draft]
 set -euo pipefail
 
+DRY_RUN="${DRY_RUN:-}"
+DRAFT_PR="${DRAFT_PR:-}"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1; shift ;;
+    --draft)   DRAFT_PR=1; shift ;;
+    *) echo "Unknown option: $1" >&2; exit 1 ;;
+  esac
+done
+
 ORG="${ORG:?ORG required}"
-GH_TOKEN="${GH_TOKEN:?GH_TOKEN required}"
+# GH_TOKEN required only when not dry-run
+if [[ -z "${DRY_RUN}" ]]; then
+  GH_TOKEN="${GH_TOKEN:?GH_TOKEN required}"
+fi
 BRANCH="${BRANCH:-chore/template-sync}"
 REPOS_LIST="${REPOS_LIST:-}"
 FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
@@ -16,6 +30,17 @@ FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
 for repo in $REPOS_LIST; do
   [[ -n "$repo" ]] || continue
   [[ "$repo" != "template-template" ]] || continue
+
+  if [[ -n "${DRY_RUN}" ]]; then
+    echo "--- [dry-run] Would sync to $ORG/$repo ---"
+    echo "  Files:"
+    while IFS= read -r f; do
+      [[ -z "$f" ]] && continue
+      echo "    - $f"
+    done < "$FILES_LIST"
+    echo "  (no clone, push, or PR)"
+    continue
+  fi
 
   echo "--- Syncing to $ORG/$repo ---"
   rm -rf dest_repo
@@ -47,9 +72,16 @@ for repo in $REPOS_LIST; do
   DEFAULT_BASE=$(gh repo view "${ORG}/${repo}" --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || echo "main")
   PR=$(gh pr list --repo "${ORG}/${repo}" --head "${BRANCH}" --json number -q '.[0].number' 2>/dev/null || true)
   if [[ -z "$PR" || "$PR" = "null" ]]; then
-    gh pr create --repo "${ORG}/${repo}" --base "${DEFAULT_BASE}" --head "${BRANCH}" \
-      --title "chore(template): sync from template repository" \
-      --body "Automated sync from $ORG/template-template. Merge when checks pass."
+    if [[ -n "${DRAFT_PR}" ]]; then
+      gh pr create --repo "${ORG}/${repo}" --base "${DEFAULT_BASE}" --head "${BRANCH}" \
+        --title "chore(template): sync from template repository" \
+        --body "Automated sync from $ORG/template-template. Merge when checks pass." \
+        --draft
+    else
+      gh pr create --repo "${ORG}/${repo}" --base "${DEFAULT_BASE}" --head "${BRANCH}" \
+        --title "chore(template): sync from template repository" \
+        --body "Automated sync from $ORG/template-template. Merge when checks pass."
+    fi
   else
     echo "  PR #$PR already open"
   fi
