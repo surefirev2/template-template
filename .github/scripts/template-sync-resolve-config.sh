@@ -25,7 +25,7 @@ done
 [[ -f "$CONFIG" ]] || { echo "Config not found: $CONFIG" >&2; exit 1; }
 
 # Parse only the repositories section (stop at next top-level key like exclude_paths:)
-REPOS_RAW=$(awk '/^repositories:/{flag=1;next} flag && /^[a-zA-Z_][a-zA-Z0-9_-]*:/{exit} flag' "$CONFIG" 2>/dev/null | grep -E '^\s*-\s*' | sed -E 's/^\s*-\s*"?([^"]+)"?.*/\1/' | tr '\n' ' ')
+REPOS_RAW=$(awk '/^repositories:/{flag=1;next} flag && /^[a-zA-Z_][a-zA-Z0-9_-]*:/{exit} flag' "$CONFIG" 2>/dev/null | grep -E '^\s*-\s*' | sed -E 's/^\s*-\s*"?([^"]+)"?.*/\1/' | tr '\n' ' ' || true)
 REPOS=""
 for entry in $REPOS_RAW; do
   [[ -z "$entry" ]] && continue
