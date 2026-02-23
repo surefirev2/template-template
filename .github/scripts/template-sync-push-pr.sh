@@ -26,7 +26,14 @@ ORG="${ORG:?ORG required}"
 if [[ -z "${DRY_RUN}" ]]; then
   GH_TOKEN="${GH_TOKEN:?GH_TOKEN required}"
 fi
-BRANCH="${BRANCH:-chore/template-sync}"
+# Unique per source repo so multiple template parents don't share one branch in a child
+if [[ -n "${BRANCH:-}" ]]; then
+  :
+elif [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+  BRANCH="chore/template-sync-${GITHUB_REPOSITORY//\//-}"
+else
+  BRANCH="chore/template-sync"
+fi
 REPOS_LIST="${REPOS_LIST:-}"
 FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
 FILES_LIST_TEMPLATE="${FILES_LIST_TEMPLATE:-}"
