@@ -68,7 +68,7 @@ jobs:
         run: bash .github/scripts/template-sync-write-step-summary.sh
 
       - name: Generate diff of synced files per repo (PR base → head)
-        if: github.event_name == 'pull_request' && steps.files.outputs.count != '0'
+        if: github.event_name == 'pull_request' && steps.files.outputs.count != '0' && steps.config.outputs.repos_list != ''
         env:
           REPOS: ${{ steps.config.outputs.repos_list }}
         run: bash .github/scripts/template-sync-generate-diffs.sh
@@ -89,6 +89,7 @@ jobs:
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && steps.config.outputs.repos_list != '' && steps.files.outputs.count != '0'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           ORG: ${{ github.repository_owner }}
           BRANCH: chore/template-sync
           REPOS_LIST: ${{ steps.config.outputs.repos_list }}
