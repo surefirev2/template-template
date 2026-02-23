@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# OWNED BY template-template — do not edit. Changes will be overwritten on the next sync unless made in this repo.
+# Source: https://github.com/surefirev2/template-template
+#
 # Resolve template-sync config: repo list (literal + glob), include_paths (allowlist), exclude_paths (blacklist).
 # Writes GITHUB_OUTPUT (repos_list, exclusions), include_paths.txt and exclusions.txt in output dir.
 # Usage: template-sync-resolve-config.sh [--config PATH] [--org ORG] [--out-dir DIR]
@@ -22,7 +25,7 @@ done
 [[ -f "$CONFIG" ]] || { echo "Config not found: $CONFIG" >&2; exit 1; }
 
 # Parse only the repositories section (stop at next top-level key like exclude_paths:)
-REPOS_RAW=$(awk '/^repositories:/{flag=1;next} flag && /^[a-zA-Z_][a-zA-Z0-9_-]*:/{exit} flag' "$CONFIG" 2>/dev/null | grep -E '^\s*-\s*' | sed -E 's/^\s*-\s*"?([^"]+)"?.*/\1/' | tr '\n' ' ')
+REPOS_RAW=$(awk '/^repositories:/{flag=1;next} flag && /^[a-zA-Z_][a-zA-Z0-9_-]*:/{exit} flag' "$CONFIG" 2>/dev/null | grep -E '^\s*-\s*' | sed -E 's/^\s*-\s*"?([^"]+)"?.*/\1/' | tr '\n' ' ' || true)
 REPOS=""
 for entry in $REPOS_RAW; do
   [[ -z "$entry" ]] && continue

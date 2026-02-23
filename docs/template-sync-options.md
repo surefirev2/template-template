@@ -13,17 +13,19 @@ Template sync is implemented as a **push-based flow that opens PRs** (Option B):
 
 ## Config
 
+Full schema and behavior are documented in [template-sync-config-schema.md](template-sync-config-schema.md). Summary:
+
 - **.github/template-sync.yml:**
-  - `repositories`: list of downstream repo names and/or glob patterns. Patterns are resolved against the org; exact names are used as-is.
-  - `include_paths`: default allowlist of paths to sync to all repos. If non-empty, only these paths are synced (unless overridden per repo).
-  - `repo_include_paths`: optional per-repo additions. Map a repo name to extra paths; each repo gets global `include_paths` plus its own list (merged). Use for files that only some repos should receive.
-  - `exclude_paths`: blacklist of paths not to sync; used only when `include_paths` is empty.
+  - `repositories`: (required) list of downstream repo names and/or glob patterns. Patterns are resolved against the org; exact names are used as-is.
+  - `include_paths`: (optional) allowlist of paths to sync to all repos. If non-empty, only these paths are synced (allowlist mode). Paths may end with `/*` for directory trees.
+  - `repo_include_paths`: (optional) per-repo overrides; map a repo name to its path list (merged with global include_paths where applicable).
+  - `exclude_paths`: (optional) blacklist; used only when `include_paths` is empty. When both are present, the scripts use `include_paths` as the source of truth and do not combine allowlist and blacklist.
 
 ## Testing
 
 - **Dry run:** In the template repo, go to **Actions → Template Sync → Run workflow**. Check **Dry run (no clone/push/PR)** and run. The job will resolve config, build the file list, and run the sync script in dry-run mode (logs show which repos and files would be synced; no clone, push, or PR).
 - **Draft PR:** Run workflow with **Create PRs as draft** checked (and **Dry run** unchecked) to open template-sync PRs as drafts in each dependent.
-- **Local dry-run:** From the repo root, after resolving config and building the file list (e.g. by running the same steps as the workflow), run: `DRY_RUN=1 ORG=your-org REPOS_LIST="repo1 repo2" FILES_LIST=files_to_sync.txt bash .github/scripts/template-sync-push-pr.sh` (or use `--dry-run`). No token required for dry-run.
+- **Local dry-run:** From the repo root, after resolving config and building the file list (e.g. by running the same steps as the workflow), run: `DRY_RUN=1 ORG=your-org REPOS_LIST="repo1 repo2" FILES_LIST=files_to_sync.txt bash .github/scripts/template-sync-push-pr.sh` (or use `--dry-run`). No token required for dry-run. Set `GITHUB_REPOSITORY=org/repo` if you want the logs to show the correct sync source (commit and PR body use this when the workflow runs in CI).
 
 ## Permissions
 
