@@ -6,16 +6,18 @@ Template sync is implemented as a **push-based flow that opens PRs** (Option B):
 
 - **Trigger:** Push to `main` (sync runs) or `pull_request` to `main` (preview only: target repos and file list are shown in the job summary; no sync).
 - **Workflow:** [.github/workflows/sync.yaml](../.github/workflows/sync.yaml) runs in the template repo. It reads [.github/template-sync.yml](../.github/template-sync.yml) for:
-  - **Repos:** `repositories` lists exact repo names and/or glob patterns (e.g. `template-1-*`); patterns are resolved via `gh repo list`.
-  - **Files:** `exclude_paths` lists paths to exclude from sync (blacklist); all other tracked files are synced.
+  - **Repos:** `repositories` lists exact repo names and/or glob patterns; patterns are resolved via `gh repo list`.
+  - **Files:** If `include_paths` is non-empty, only those paths are synced (allowlist). Otherwise `exclude_paths` is used as a blacklist.
 - **Behavior:** For each dependent repo, the workflow clones the repo, copies the included files from the template into branch `chore/template-sync`, pushes the branch, and creates a pull request (or updates the existing PR if one is already open for that branch). There is **no direct push to the default branch** of dependents.
 - **Result:** Each dependent gets a PR; required status checks (e.g. pre-commit) run on the PR. Merge is manual or can be automated later. **No automerge workflow** is provided for these template-sync PRs.
 
 ## Config
 
 - **.github/template-sync.yml:**
-  - `repositories`: list of downstream repo names and/or glob patterns (e.g. `template-1-*`, `template-cursor`). Patterns are resolved against the org; exact names are used as-is.
-  - `exclude_paths`: paths in the template repo that are not synced to dependents (blacklist).
+  - `repositories`: list of downstream repo names and/or glob patterns. Patterns are resolved against the org; exact names are used as-is.
+  - `include_paths`: default allowlist of paths to sync to all repos. If non-empty, only these paths are synced (unless overridden per repo).
+  - `repo_include_paths`: optional per-repo additions. Map a repo name to extra paths; each repo gets global `include_paths` plus its own list (merged). Use for files that only some repos should receive.
+  - `exclude_paths`: blacklist of paths not to sync; used only when `include_paths` is empty.
 
 ## Testing
 

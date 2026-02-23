@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Resolve template-sync config: repo list (literal + glob) and exclude_paths.
-# Writes GITHUB_OUTPUT (repos_list, exclusions) and exclusions.txt in output dir.
+# Resolve template-sync config: repo list (literal + glob), include_paths (allowlist), exclude_paths (blacklist).
+# Writes GITHUB_OUTPUT (repos_list, exclusions), include_paths.txt and exclusions.txt in output dir.
 # Usage: template-sync-resolve-config.sh [--config PATH] [--org ORG] [--out-dir DIR]
 set -euo pipefail
 
@@ -36,9 +36,20 @@ for entry in $REPOS_RAW; do
 done
 REPOS=$(echo "$REPOS" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
 
-# Parse only the exclude_paths section (stop at next top-level key)
+# Parse include_paths (default allowlist for all repos)
+INCLUDES=$(awk '/^include_paths:/{flag=1;next} flag && /^[a-zA-Z_][a-zA-Z0-9_-]*:/{exit} flag' "$CONFIG" 2>/dev/null | grep -E '^\s*-\s*' | sed -E 's/^\s*-\s*"?([^"]+)"?.*/\1/' | grep -v '^\s*$' || true)
+# Parse repo_include_paths (per-repo overrides: reponame -> list of paths)
+awk '/^repo_include_paths:/{in_sec=1;next} in_sec && /^[a-zA-Z_][a-zA-Z0-9_-]*:/{in_sec=0} in_sec && /^  [a-zA-Z0-9_.-]+:/{gsub(/^  |:$/,"");repo=$0;next} in_sec && /^    - /{gsub(/^    - /,"");print repo, $0}' "$CONFIG" 2>/dev/null | while read -r repo path; do
+  [[ -z "$repo" || -z "$path" ]] && continue
+  echo "$path" >> "$OUT_DIR/include_paths_${repo}.txt"
+done
+for f in "$OUT_DIR"/include_paths_*.txt; do
+  [[ -f "$f" ]] && sort -u "$f" -o "$f"
+done
+# Parse exclude_paths (blacklist; used when include_paths is empty)
 EXCLUSIONS=$(awk '/^exclude_paths:/{flag=1;next} flag && /^[a-zA-Z_][a-zA-Z0-9_-]*:/{exit} flag' "$CONFIG" 2>/dev/null | grep -E '^\s*-\s*' | sed -E 's/^\s*-\s*"?([^"]+)"?.*/\1/' | grep -v '^\s*$' || true)
 mkdir -p "$OUT_DIR"
+echo "$INCLUDES" > "$OUT_DIR/include_paths.txt"
 echo "$EXCLUSIONS" > "$OUT_DIR/exclusions.txt"
 
 # GitHub Actions: write outputs

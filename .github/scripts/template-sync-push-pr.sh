@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # For each dependent repo: clone, copy included files, push branch, create or update PR.
-# Env: ORG, GH_TOKEN (not required if DRY_RUN=1), BRANCH, REPOS_LIST, FILES_LIST.
+# Env: ORG, GH_TOKEN (not required if DRY_RUN=1), BRANCH, REPOS_LIST, FILES_LIST or FILES_LIST_TEMPLATE (e.g. files_to_sync_%s.txt).
 # Options: --dry-run (no clone/push/pr), --draft (create PR as draft).
 # Usage: template-sync-push-pr.sh [--dry-run] [--draft]
 set -euo pipefail
@@ -23,13 +23,19 @@ fi
 BRANCH="${BRANCH:-chore/template-sync}"
 REPOS_LIST="${REPOS_LIST:-}"
 FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
+FILES_LIST_TEMPLATE="${FILES_LIST_TEMPLATE:-}"
 
 [[ -n "$REPOS_LIST" ]] || { echo "No dependent repos to sync."; exit 0; }
-[[ -f "$FILES_LIST" ]] || { echo "Files list not found: $FILES_LIST" >&2; exit 1; }
 
 for repo in $REPOS_LIST; do
   [[ -n "$repo" ]] || continue
   [[ "$repo" != "template-template" ]] || continue
+
+  # Per-repo file list when FILES_LIST_TEMPLATE is set (e.g. files_to_sync_%s.txt)
+  if [[ -n "$FILES_LIST_TEMPLATE" ]]; then
+    FILES_LIST=$(printf "$FILES_LIST_TEMPLATE" "$repo")
+  fi
+  [[ -f "$FILES_LIST" ]] || { echo "Files list not found: $FILES_LIST" >&2; exit 1; }
 
   if [[ -n "${DRY_RUN}" ]]; then
     echo "--- [dry-run] Would sync to $ORG/$repo ---"

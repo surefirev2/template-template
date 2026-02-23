@@ -1,3 +1,6 @@
+# OWNED BY template-template — do not edit. Changes will be overwritten on the next sync.
+# Source: https://github.com/surefirev2/template-template
+#
 # Template Sync: on push to main, create a PR in each dependent (no direct push to main).
 name: Template Sync
 
@@ -53,7 +56,21 @@ jobs:
 
       - name: Build list of files to sync
         id: files
-        run: bash .github/scripts/template-sync-build-file-list.sh --exclusions-file exclusions.txt --output files_to_sync.txt
+        run: |
+          REPOS="${{ steps.config.outputs.repos_list }}"
+          if [[ -n "$REPOS" ]]; then
+            if [[ -s include_paths.txt ]]; then
+              bash .github/scripts/template-sync-build-file-list.sh --repos "$REPOS" --include-file include_paths.txt --include-dir . --output-dir .
+            else
+              bash .github/scripts/template-sync-build-file-list.sh --repos "$REPOS" --exclusions-file exclusions.txt --include-dir . --output-dir .
+            fi
+          else
+            if [[ -s include_paths.txt ]]; then
+              bash .github/scripts/template-sync-build-file-list.sh --include-file include_paths.txt --output-dir .
+            else
+              bash .github/scripts/template-sync-build-file-list.sh --exclusions-file exclusions.txt --output-dir .
+            fi
+          fi
 
       - name: Preview sync impact
         if: github.event_name == 'pull_request'
@@ -102,7 +119,7 @@ jobs:
           ORG: ${{ github.repository_owner }}
           BRANCH: chore/template-sync
           REPOS_LIST: ${{ steps.config.outputs.repos_list }}
-          FILES_LIST: files_to_sync.txt
+          FILES_LIST_TEMPLATE: files_to_sync_%s.txt
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}
           DRAFT_PR: ${{ github.event_name == 'workflow_dispatch' && inputs.draft_pr && '1' || '' }}
         run: bash .github/scripts/template-sync-push-pr.sh
