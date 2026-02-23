@@ -3,6 +3,7 @@
 # Env: REPOS (space-separated). Uses HEAD^1 = base, HEAD^2 = PR head (merge commit).
 # Usage: template-sync-generate-diffs.sh [--base REF] [--head REF]
 set -euo pipefail
+if [[ -n "${DEBUG:-}" ]]; then set -x; fi
 
 BASE_REF="HEAD^1"
 HEAD_REF="HEAD^2"

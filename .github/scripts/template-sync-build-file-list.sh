@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Build list of template files to sync.
+# Paths in include_paths / repo_include_paths may end with "/*" to mean all tracked files under that directory (e.g. .github/scripts/*).
 # With --repos: build per-repo files_to_sync_<repo>.txt = global include_paths + repo_include_paths[repo] (merged)
 #   and union files_to_sync.txt for preview/diff.
 # Without --repos: single list from --include-file or --exclusions-file.
 # Writes count to GITHUB_OUTPUT.
 # Usage: template-sync-build-file-list.sh [--repos "r1 r2"] (--include-file PATH | --exclusions-file PATH) [--include-dir DIR] [--output-dir DIR] [--output FILE]
 set -euo pipefail
+if [[ -n "${DEBUG:-}" ]]; then set -x; fi
 
 REPOS_LIST=""
 INCLUDE_FILE=""
@@ -28,6 +30,21 @@ done
 
 [[ -n "$INCLUDE_FILE" ]] || [[ -n "$EXCLUSIONS_FILE" ]] || { echo "Need --include-file or --exclusions-file" >&2; exit 1; }
 
+# Expand a path that may contain a trailing "/*" to all tracked files under that prefix.
+expand_path() {
+  local path="$1"
+  if [[ "$path" == *'*'* ]]; then
+    # e.g. .github/scripts/* -> prefix .github/scripts/, match all tracked files under it
+    local prefix="${path%%/\*}"
+    if [[ -n "$prefix" ]]; then
+      local esc="${prefix//./\\.}"
+      grep -E "^${esc}/" all_files.txt 2>/dev/null || true
+    fi
+  else
+    grep -Fx "$path" all_files.txt 2>/dev/null || true
+  fi
+}
+
 build_one_list() {
   local src_file="$1"
   local out_file="$2"
@@ -36,7 +53,7 @@ build_one_list() {
     > "$out_file"
     while IFS= read -r path; do
       [[ -z "$path" ]] && continue
-      grep -Fx "$path" all_files.txt >> "$out_file" 2>/dev/null || true
+      expand_path "$path" >> "$out_file"
     done < "$src_file"
     sort -u "$out_file" -o "$out_file"
   else

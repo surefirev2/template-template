@@ -4,6 +4,7 @@
 #      optional DIFF_FILE_TEMPLATE (sync_diff_%s.txt) for per-repo diffs; or single DIFF_FILE for backward compat.
 # Usage: template-sync-pr-comment.sh <pr_number> [--repo OWNER/REPO]
 set -euo pipefail
+if [[ -n "${DEBUG:-}" ]]; then set -x; fi
 
 PR_NUMBER=""
 REPO="${GITHUB_REPOSITORY:-}"
@@ -31,8 +32,8 @@ MARKER="<!-- template-sync-preview -->"
 append_diff_section() {
   local path="$1"
   local label="$2"
-  [[ -z "$path" || ! -f "$path" ]] && return
-  [[ -s "$path" ]] || return
+  [[ -z "$path" || ! -f "$path" ]] && return 0
+  [[ -s "$path" ]] || return 0
   echo ""
   echo "<details><summary>${label}</summary>"
   echo ""
@@ -105,8 +106,9 @@ trap 'rm -f "$BODY_FILE"' EXIT
   echo "$MARKER"
 } > "$BODY_FILE"
 
+# Don't fail the script if list-comments fails (e.g. API error); with pipefail, a failing gh in the pipeline would exit
 COMMENT_ID=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
-  --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"$MARKER\"))) | .id" 2>/dev/null | head -1)
+  --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"$MARKER\"))) | .id" 2>/dev/null | head -1) || true
 
 if [[ -n "$COMMENT_ID" ]]; then
   jq -n --rawfile b "$BODY_FILE" '{body: $b}' | gh api -X PATCH "repos/${REPO}/issues/comments/${COMMENT_ID}" --input -
