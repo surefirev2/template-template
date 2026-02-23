@@ -56,51 +56,22 @@ jobs:
 
       - name: Build list of files to sync
         id: files
-        run: |
-          REPOS="${{ steps.config.outputs.repos_list }}"
-          if [[ -n "$REPOS" ]]; then
-            if [[ -s include_paths.txt ]]; then
-              bash .github/scripts/template-sync-build-file-list.sh --repos "$REPOS" --include-file include_paths.txt --include-dir . --output-dir .
-            else
-              bash .github/scripts/template-sync-build-file-list.sh --repos "$REPOS" --exclusions-file exclusions.txt --include-dir . --output-dir .
-            fi
-          else
-            if [[ -s include_paths.txt ]]; then
-              bash .github/scripts/template-sync-build-file-list.sh --include-file include_paths.txt --output-dir .
-            else
-              bash .github/scripts/template-sync-build-file-list.sh --exclusions-file exclusions.txt --output-dir .
-            fi
-          fi
+        env:
+          REPOS: ${{ steps.config.outputs.repos_list }}
+        run: bash .github/scripts/template-sync-ga-build-file-list.sh
 
       - name: Preview sync impact
         if: github.event_name == 'pull_request'
-        run: |
-          echo "## Template sync preview" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          REPOS="${{ steps.config.outputs.repos_list }}"
-          COUNT="${{ steps.files.outputs.count }}"
-          echo "**Target repositories:** \`${REPOS:-none}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Files to sync:** $COUNT" >> "$GITHUB_STEP_SUMMARY"
-          if [[ -f files_to_sync.txt && -s files_to_sync.txt ]]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "<details><summary>File list</summary>" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat files_to_sync.txt >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "*Actual sync runs only on push to \`main\`.*" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          REPOS: ${{ steps.config.outputs.repos_list }}
+          COUNT: ${{ steps.files.outputs.count }}
+        run: bash .github/scripts/template-sync-write-step-summary.sh
 
-      - name: Generate diff of synced files (PR base → head)
+      - name: Generate diff of synced files per repo (PR base → head)
         if: github.event_name == 'pull_request' && steps.files.outputs.count != '0'
-        run: |
-          # Checkout yields merge commit: HEAD^1 = base, HEAD^2 = PR head (requires fetch-depth >= 2)
-          FILES=$(tr '\n' ' ' < files_to_sync.txt)
-          git diff HEAD^1 HEAD^2 -- $FILES > sync_diff.txt 2>/dev/null || echo -n '' > sync_diff.txt
-          echo "Diff lines: $(wc -l < sync_diff.txt)"
+        env:
+          REPOS: ${{ steps.config.outputs.repos_list }}
+        run: bash .github/scripts/template-sync-generate-diffs.sh
 
       - name: Upsert template sync preview comment on PR
         if: github.event_name == 'pull_request'
@@ -109,7 +80,8 @@ jobs:
           REPOS: ${{ steps.config.outputs.repos_list }}
           COUNT: ${{ steps.files.outputs.count }}
           FILES_LIST: files_to_sync.txt
-          DIFF_FILE: sync_diff.txt
+          FILES_LIST_TEMPLATE: files_to_sync_%s.txt
+          DIFF_FILE_TEMPLATE: sync_diff_%s.txt
         run: bash .github/scripts/template-sync-pr-comment.sh "${{ github.event.pull_request.number }}"
 
       - name: Sync to dependents and open PR
