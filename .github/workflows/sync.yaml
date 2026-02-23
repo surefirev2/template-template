@@ -76,6 +76,7 @@ jobs:
       - name: Upsert template sync preview comment on PR
         if: github.event_name == 'pull_request'
         env:
+          DEBUG: "1"
           GH_TOKEN: ${{ github.token }}
           REPOS: ${{ steps.config.outputs.repos_list }}
           COUNT: ${{ steps.files.outputs.count }}
