@@ -3,7 +3,7 @@
 # Source: https://github.com/surefirev2/template-template
 #
 # For each dependent repo: clone, copy included files, push branch, create or update PR.
-# Env: ORG, GH_TOKEN (not required if DRY_RUN=1), BRANCH, REPOS_LIST, FILES_LIST or FILES_LIST_TEMPLATE (e.g. files_to_sync_%s.txt).
+# Env: ORG, GH_TOKEN (not required if DRY_RUN=1), BRANCH, REPOS_LIST, FILES_LIST or FILES_LIST_TEMPLATE (e.g. files_to_sync_%s.txt). GITHUB_REPOSITORY (repo running the workflow) for commit/PR attribution.
 # Options: --dry-run (no clone/push/pr), --draft (create PR as draft).
 # Usage: template-sync-push-pr.sh [--dry-run] [--draft]
 set -euo pipefail
@@ -28,6 +28,7 @@ BRANCH="${BRANCH:-chore/template-sync}"
 REPOS_LIST="${REPOS_LIST:-}"
 FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
 FILES_LIST_TEMPLATE="${FILES_LIST_TEMPLATE:-}"
+SOURCE_REPO="${GITHUB_REPOSITORY:-$ORG/template-template}"
 
 [[ -n "$REPOS_LIST" ]] || { echo "No dependent repos to sync."; exit 0; }
 
@@ -76,7 +77,7 @@ for repo in $REPOS_LIST; do
 
   git config user.name "github-actions[bot]"
   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-  git commit -m "chore(template): sync from $ORG/template-template"
+  git commit -m "chore(template): sync from $SOURCE_REPO"
   git push origin "${BRANCH}" --force
 
   DEFAULT_BASE=$(gh repo view "${ORG}/${repo}" --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || echo "main")
@@ -85,12 +86,12 @@ for repo in $REPOS_LIST; do
     if [[ -n "${DRAFT_PR}" ]]; then
       gh pr create --repo "${ORG}/${repo}" --base "${DEFAULT_BASE}" --head "${BRANCH}" \
         --title "chore(template): sync from template repository" \
-        --body "Automated sync from $ORG/template-template. Merge when checks pass." \
+        --body "Automated sync from $SOURCE_REPO. Merge when checks pass." \
         --draft
     else
       gh pr create --repo "${ORG}/${repo}" --base "${DEFAULT_BASE}" --head "${BRANCH}" \
         --title "chore(template): sync from template repository" \
-        --body "Automated sync from $ORG/template-template. Merge when checks pass."
+        --body "Automated sync from $SOURCE_REPO. Merge when checks pass."
     fi
   else
     echo "  PR #$PR already open"
