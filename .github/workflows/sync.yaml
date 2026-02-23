@@ -79,7 +79,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           ORG: ${{ github.repository_owner }}
-          BRANCH: chore/template-sync
+          BRANCH: chore/template-sync-${{ github.repository_owner }}-${{ github.event.repository.name }}
           REPOS_LIST: ${{ steps.config.outputs.repos_list }}
           FILES_LIST_TEMPLATE: files_to_sync_%s.txt
           DRAFT_PR: "1"
@@ -105,7 +105,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           ORG: ${{ github.repository_owner }}
-          BRANCH: chore/template-sync
+          BRANCH: chore/template-sync-${{ github.repository_owner }}-${{ github.event.repository.name }}
           REPOS_LIST: ${{ steps.config.outputs.repos_list }}
           FILES_LIST_TEMPLATE: files_to_sync_%s.txt
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}
