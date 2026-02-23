@@ -32,6 +32,8 @@ FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
 FILES_LIST_TEMPLATE="${FILES_LIST_TEMPLATE:-}"
 SOURCE_REPO="${GITHUB_REPOSITORY:-$ORG/template-template}"
 CHILD_PR_URLS_FILE="${CHILD_PR_URLS_FILE:-}"
+# Resolve to absolute path so appends work when we cd into dest_repo (otherwise file is written inside dest_repo and removed)
+[[ -n "$CHILD_PR_URLS_FILE" && "$CHILD_PR_URLS_FILE" != /* ]] && CHILD_PR_URLS_FILE="$(pwd)/$CHILD_PR_URLS_FILE"
 
 [[ -n "$REPOS_LIST" ]] || { echo "No dependent repos to sync."; exit 0; }
 [[ -z "$CHILD_PR_URLS_FILE" ]] || : > "$CHILD_PR_URLS_FILE"
