@@ -57,6 +57,9 @@ for repo in $REPOS_LIST; do
     FILES_LIST=$(printf "$FILES_LIST_TEMPLATE" "$repo")
   fi
   [[ -f "$FILES_LIST" ]] || { echo "Files list not found: $FILES_LIST" >&2; exit 1; }
+  # Absolute path so we can read the list after cd into dest_repo
+  FILES_LIST_ABS="$FILES_LIST"
+  [[ "$FILES_LIST_ABS" == /* ]] || FILES_LIST_ABS="$(pwd)/$FILES_LIST_ABS"
 
   if [[ -n "${DRY_RUN}" ]]; then
     echo "--- [dry-run] Would sync to $ORG/$repo ---"
@@ -84,6 +87,16 @@ for repo in $REPOS_LIST; do
 
   cd dest_repo
   git add -A
+  # Apply file modes (e.g. executable bit) from template so diff detects permission-only changes
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    mode=$(git -C .. ls-files -s -- "$f" 2>/dev/null | awk '{print $1}')
+    if [[ "$mode" == 100755 ]]; then
+      git update-index --chmod=+x "$f"
+    elif [[ "$mode" == 100644 ]]; then
+      git update-index --chmod=-x "$f"
+    fi
+  done < "$FILES_LIST_ABS"
   if git diff --staged --quiet; then
     echo "  No changes for $repo"
     # Still update PR state (e.g. mark draft as ready when syncing after merge)
@@ -95,6 +108,11 @@ for repo in $REPOS_LIST; do
           gh pr ready "$PR" --repo "${ORG}/${repo}"
           echo "  PR #$PR marked ready for review"
         fi
+      fi
+      # Record child PR URL so the parent PR comment can link to it
+      if [[ -n "$CHILD_PR_URLS_FILE" ]]; then
+        pr_url=$(gh pr view "$PR" --repo "${ORG}/${repo}" --json url -q '.url' 2>/dev/null || true)
+        [[ -n "$pr_url" ]] && echo "$repo $pr_url" >> "$CHILD_PR_URLS_FILE"
       fi
     fi
     cd ..
