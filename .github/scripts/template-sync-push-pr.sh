@@ -86,6 +86,17 @@ for repo in $REPOS_LIST; do
   git add -A
   if git diff --staged --quiet; then
     echo "  No changes for $repo"
+    # Still update PR state (e.g. mark draft as ready when syncing after merge)
+    PR=$(gh pr list --repo "${ORG}/${repo}" --head "${BRANCH}" --json number -q '.[0].number' 2>/dev/null || true)
+    if [[ -n "$PR" && "$PR" != "null" ]]; then
+      if [[ -z "${DRAFT_PR}" ]]; then
+        is_draft=$(gh pr view "$PR" --repo "${ORG}/${repo}" --json isDraft -q '.isDraft' 2>/dev/null || true)
+        if [[ "$is_draft" == "true" ]]; then
+          gh pr ready "$PR" --repo "${ORG}/${repo}"
+          echo "  PR #$PR marked ready for review"
+        fi
+      fi
+    fi
     cd ..
     rm -rf dest_repo
     continue
