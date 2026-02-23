@@ -80,6 +80,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           ORG: ${{ github.repository_owner }}
           BRANCH: chore/template-sync-${{ github.repository_owner }}-${{ github.event.repository.name }}
+          PARENT_PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOS_LIST: ${{ steps.config.outputs.repos_list }}
           FILES_LIST_TEMPLATE: files_to_sync_%s.txt
           DRAFT_PR: "1"
