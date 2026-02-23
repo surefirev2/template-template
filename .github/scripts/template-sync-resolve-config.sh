@@ -3,6 +3,7 @@
 # Writes GITHUB_OUTPUT (repos_list, exclusions), include_paths.txt and exclusions.txt in output dir.
 # Usage: template-sync-resolve-config.sh [--config PATH] [--org ORG] [--out-dir DIR]
 set -euo pipefail
+if [[ -n "${DEBUG:-}" ]]; then set -x; fi
 
 CONFIG=".github/template-sync.yml"
 ORG="${GITHUB_REPOSITORY_OWNER:-}"

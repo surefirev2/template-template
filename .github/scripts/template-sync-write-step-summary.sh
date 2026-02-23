@@ -3,6 +3,7 @@
 # Env: REPOS (target repos), COUNT (file count), FILES_LIST (path to union file list, default files_to_sync.txt).
 # Usage: template-sync-write-step-summary.sh
 set -euo pipefail
+if [[ -n "${DEBUG:-}" ]]; then set -x; fi
 
 REPOS="${REPOS:-none}"
 COUNT="${COUNT:-0}"

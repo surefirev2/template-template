@@ -4,6 +4,7 @@
 # Options: --dry-run (no clone/push/pr), --draft (create PR as draft).
 # Usage: template-sync-push-pr.sh [--dry-run] [--draft]
 set -euo pipefail
+if [[ -n "${DEBUG:-}" ]]; then set -x; fi
 
 DRY_RUN="${DRY_RUN:-}"
 DRAFT_PR="${DRAFT_PR:-}"

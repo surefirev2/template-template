@@ -3,6 +3,7 @@
 # Env: REPOS (space-separated, from config), cwd must have include_paths.txt and/or exclusions.txt.
 # Usage: template-sync-ga-build-file-list.sh
 set -euo pipefail
+if [[ -n "${DEBUG:-}" ]]; then set -x; fi
 
 REPOS="${REPOS:-}"
 INCLUDE_FILE="include_paths.txt"

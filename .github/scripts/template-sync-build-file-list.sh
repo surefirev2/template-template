@@ -7,6 +7,7 @@
 # Writes count to GITHUB_OUTPUT.
 # Usage: template-sync-build-file-list.sh [--repos "r1 r2"] (--include-file PATH | --exclusions-file PATH) [--include-dir DIR] [--output-dir DIR] [--output FILE]
 set -euo pipefail
+if [[ -n "${DEBUG:-}" ]]; then set -x; fi
 
 REPOS_LIST=""
 INCLUDE_FILE=""
