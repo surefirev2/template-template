@@ -38,9 +38,9 @@ jobs:
           # Need merge commit and both parents so "Generate diff" can run git diff HEAD^1 HEAD^2
           fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
 
-      # Create token for push and workflow_dispatch (needed for real sync; harmless for dry-run)
+      # Create token for push, workflow_dispatch, and pull_request (needed to open/update PRs in child repos)
       - name: Create GitHub App token
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
         id: app-token
         uses: actions/create-github-app-token@v2
         with:
@@ -73,6 +73,19 @@ jobs:
           REPOS: ${{ steps.config.outputs.repos_list }}
         run: bash .github/scripts/template-sync-generate-diffs.sh
 
+      - name: Sync to dependents and open draft PR
+        if: github.event_name == 'pull_request' && steps.config.outputs.repos_list != '' && steps.files.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ORG: ${{ github.repository_owner }}
+          BRANCH: chore/template-sync
+          REPOS_LIST: ${{ steps.config.outputs.repos_list }}
+          FILES_LIST_TEMPLATE: files_to_sync_%s.txt
+          DRAFT_PR: "1"
+          CHILD_PR_URLS_FILE: child_pr_urls.txt
+        run: bash .github/scripts/template-sync-push-pr.sh --draft
+
       - name: Upsert template sync preview comment on PR
         if: github.event_name == 'pull_request'
         env:
@@ -83,6 +96,7 @@ jobs:
           FILES_LIST: files_to_sync.txt
           FILES_LIST_TEMPLATE: files_to_sync_%s.txt
           DIFF_FILE_TEMPLATE: sync_diff_%s.txt
+          CHILD_PR_URLS_FILE: child_pr_urls.txt
         run: bash .github/scripts/template-sync-pr-comment.sh "${{ github.event.pull_request.number }}"
 
       - name: Sync to dependents and open PR
