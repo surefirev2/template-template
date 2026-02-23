@@ -3,7 +3,9 @@
 # Source: https://github.com/surefirev2/template-template
 #
 # For each dependent repo: clone, copy included files, push branch, create or update PR.
-# Env: ORG, GH_TOKEN (not required if DRY_RUN=1), BRANCH, REPOS_LIST, FILES_LIST or FILES_LIST_TEMPLATE (e.g. files_to_sync_%s.txt). GITHUB_REPOSITORY (repo running the workflow) for commit/PR attribution.
+# Env: ORG, GH_TOKEN (not required if DRY_RUN=1), BRANCH, REPOS_LIST, FILES_LIST or FILES_LIST_TEMPLATE (e.g. files_to_sync_%s.txt).
+#       GITHUB_REPOSITORY (repo running the workflow) for commit/PR attribution.
+#       CHILD_PR_URLS_FILE: optional path to append "repo PR_URL" lines for each child PR (used by PR comment).
 # Options: --dry-run (no clone/push/pr), --draft (create PR as draft).
 # Usage: template-sync-push-pr.sh [--dry-run] [--draft]
 set -euo pipefail
@@ -29,8 +31,12 @@ REPOS_LIST="${REPOS_LIST:-}"
 FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
 FILES_LIST_TEMPLATE="${FILES_LIST_TEMPLATE:-}"
 SOURCE_REPO="${GITHUB_REPOSITORY:-$ORG/template-template}"
+CHILD_PR_URLS_FILE="${CHILD_PR_URLS_FILE:-}"
+# Resolve to absolute path so appends work when we cd into dest_repo (otherwise file is written inside dest_repo and removed)
+[[ -n "$CHILD_PR_URLS_FILE" && "$CHILD_PR_URLS_FILE" != /* ]] && CHILD_PR_URLS_FILE="$(pwd)/$CHILD_PR_URLS_FILE"
 
 [[ -n "$REPOS_LIST" ]] || { echo "No dependent repos to sync."; exit 0; }
+[[ -z "$CHILD_PR_URLS_FILE" ]] || : > "$CHILD_PR_URLS_FILE"
 
 for repo in $REPOS_LIST; do
   [[ -n "$repo" ]] || continue
@@ -93,8 +99,29 @@ for repo in $REPOS_LIST; do
         --title "chore(template): sync from template repository" \
         --body "Automated sync from $SOURCE_REPO. Merge when checks pass."
     fi
+    PR=$(gh pr list --repo "${ORG}/${repo}" --head "${BRANCH}" --json number -q '.[0].number' 2>/dev/null || true)
   else
-    echo "  PR #$PR already open"
+    if [[ -z "${DRAFT_PR}" ]]; then
+      is_draft=$(gh pr view "$PR" --repo "${ORG}/${repo}" --json isDraft -q '.isDraft' 2>/dev/null || true)
+      if [[ "$is_draft" == "true" ]]; then
+        gh pr ready "$PR" --repo "${ORG}/${repo}"
+        echo "  PR #$PR marked ready for review"
+      else
+        echo "  PR #$PR already open"
+      fi
+    else
+      is_draft=$(gh pr view "$PR" --repo "${ORG}/${repo}" --json isDraft -q '.isDraft' 2>/dev/null || true)
+      if [[ "$is_draft" != "true" ]]; then
+        echo '{"draft":true}' | gh api -X PATCH "repos/${ORG}/${repo}/pulls/${PR}" --input -
+        echo "  PR #$PR marked as draft"
+      else
+        echo "  PR #$PR already open (draft)"
+      fi
+    fi
+  fi
+  if [[ -n "$CHILD_PR_URLS_FILE" && -n "$PR" && "$PR" != "null" ]]; then
+    pr_url=$(gh pr view "$PR" --repo "${ORG}/${repo}" --json url -q '.url' 2>/dev/null || true)
+    [[ -n "$pr_url" ]] && echo "$repo $pr_url" >> "$CHILD_PR_URLS_FILE"
   fi
 
   cd ..

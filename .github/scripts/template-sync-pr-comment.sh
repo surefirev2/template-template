@@ -5,6 +5,7 @@
 # Upsert a sticky comment on a PR with template sync preview (target repos, file list(s), and diff(s) per repo).
 # Env: GH_TOKEN, REPOS (space-separated), COUNT, FILES_LIST (union), optional FILES_LIST_TEMPLATE (files_to_sync_%s.txt),
 #      optional DIFF_FILE_TEMPLATE (sync_diff_%s.txt) for per-repo diffs; or single DIFF_FILE for backward compat.
+#      optional CHILD_PR_URLS_FILE: path to file with "repo URL" lines (from sync step) to list draft PR links.
 # Usage: template-sync-pr-comment.sh <pr_number> [--repo OWNER/REPO]
 set -euo pipefail
 if [[ -n "${DEBUG:-}" ]]; then set -x; fi
@@ -28,6 +29,9 @@ FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
 FILES_LIST_TEMPLATE="${FILES_LIST_TEMPLATE:-}"
 DIFF_FILE="${DIFF_FILE:-}"
 DIFF_FILE_TEMPLATE="${DIFF_FILE_TEMPLATE:-}"
+CHILD_PR_URLS_FILE="${CHILD_PR_URLS_FILE:-}"
+# Org for repo links (e.g. from GITHUB_REPOSITORY=surefirev2/template-template)
+ORG="${REPO%%/*}"
 # GitHub issue comment body limit is 65536 characters; leave headroom for markdown
 MAX_DIFF_CHARS=60000
 MARKER="<!-- template-sync-preview -->"
@@ -61,7 +65,20 @@ trap 'rm -f "$BODY_FILE"' EXIT
   echo ""
   echo "If this PR is merged, the next sync will affect:"
   echo ""
-  echo "**Target repositories:** \`${REPOS}\`"
+  echo "**Target repositories:**"
+  if [[ "$REPOS" == "none" || -z "$REPOS" ]]; then
+    echo " \`${REPOS}\`"
+  elif [[ -n "$CHILD_PR_URLS_FILE" && -f "$CHILD_PR_URLS_FILE" && -s "$CHILD_PR_URLS_FILE" ]]; then
+    while read -r repo_name pr_url; do
+      [[ -n "$repo_name" && -n "$pr_url" ]] || continue
+      echo "- [\`${repo_name}\`](${pr_url})"
+    done < "$CHILD_PR_URLS_FILE"
+  else
+    for r in $REPOS; do
+      [[ -z "$r" ]] && continue
+      echo "- [\`${r}\`](https://github.com/${ORG}/${r})"
+    done
+  fi
   echo ""
   echo "**Files to sync:** $COUNT"
   # Single file list (union) when no per-repo template
@@ -104,7 +121,7 @@ trap 'rm -f "$BODY_FILE"' EXIT
     fi
   fi
   echo ""
-  echo "*Actual sync runs only on push to \`main\`.*"
+  echo "*Draft PRs are opened in child repos on each update to this PR; they are marked ready for review when this PR is merged to \`main\`.*"
   echo ""
   echo "$MARKER"
 } > "$BODY_FILE"
