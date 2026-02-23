@@ -6,6 +6,7 @@
 repositories:
   - template-1-terraform
   - template-cursor
+  - terraform-github
 
 include_paths:
   - .github/workflows/dependabot-automerge.yaml
