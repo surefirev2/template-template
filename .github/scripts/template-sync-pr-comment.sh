@@ -32,8 +32,8 @@ MARKER="<!-- template-sync-preview -->"
 append_diff_section() {
   local path="$1"
   local label="$2"
-  [[ -z "$path" || ! -f "$path" ]] && return
-  [[ -s "$path" ]] || return
+  [[ -z "$path" || ! -f "$path" ]] && return 0
+  [[ -s "$path" ]] || return 0
   echo ""
   echo "<details><summary>${label}</summary>"
   echo ""
