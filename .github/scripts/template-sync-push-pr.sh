@@ -5,6 +5,7 @@
 # For each dependent repo: clone, copy included files, push branch, create or update PR.
 # Env: ORG, GH_TOKEN (not required if DRY_RUN=1), BRANCH, REPOS_LIST, FILES_LIST or FILES_LIST_TEMPLATE (e.g. files_to_sync_%s.txt).
 #       GITHUB_REPOSITORY (repo running the workflow) for commit/PR attribution.
+#       PARENT_PR_NUMBER: optional; when set (e.g. when syncing from a parent PR), appended to BRANCH so one downstream PR per parent PR.
 #       CHILD_PR_URLS_FILE: optional path to append "repo PR_URL" lines for each child PR (used by PR comment).
 # Options: --dry-run (no clone/push/pr), --draft (create PR as draft).
 # Usage: template-sync-push-pr.sh [--dry-run] [--draft]
@@ -34,6 +35,8 @@ elif [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
 else
   BRANCH="chore/template-sync"
 fi
+# When syncing from a parent PR, include its number so each parent PR gets its own downstream branch/PR
+[[ -n "${PARENT_PR_NUMBER:-}" ]] && BRANCH="${BRANCH}-${PARENT_PR_NUMBER}"
 REPOS_LIST="${REPOS_LIST:-}"
 FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
 FILES_LIST_TEMPLATE="${FILES_LIST_TEMPLATE:-}"
@@ -98,12 +101,12 @@ for repo in $REPOS_LIST; do
   if [[ -z "$PR" || "$PR" = "null" ]]; then
     if [[ -n "${DRAFT_PR}" ]]; then
       gh pr create --repo "${ORG}/${repo}" --base "${DEFAULT_BASE}" --head "${BRANCH}" \
-        --title "chore(template): sync from template repository" \
+        --title "chore(template): sync from $SOURCE_REPO" \
         --body "Automated sync from $SOURCE_REPO. Merge when checks pass." \
         --draft
     else
       gh pr create --repo "${ORG}/${repo}" --base "${DEFAULT_BASE}" --head "${BRANCH}" \
-        --title "chore(template): sync from template repository" \
+        --title "chore(template): sync from $SOURCE_REPO" \
         --body "Automated sync from $SOURCE_REPO. Merge when checks pass."
     fi
     PR=$(gh pr list --repo "${ORG}/${repo}" --head "${BRANCH}" --json number -q '.[0].number' 2>/dev/null || true)
