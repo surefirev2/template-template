@@ -68,19 +68,16 @@ trap 'rm -f "$BODY_FILE"' EXIT
   echo "**Target repositories:**"
   if [[ "$REPOS" == "none" || -z "$REPOS" ]]; then
     echo " \`${REPOS}\`"
+  elif [[ -n "$CHILD_PR_URLS_FILE" && -f "$CHILD_PR_URLS_FILE" && -s "$CHILD_PR_URLS_FILE" ]]; then
+    while read -r repo_name pr_url; do
+      [[ -n "$repo_name" && -n "$pr_url" ]] || continue
+      echo "- [\`${repo_name}\`](${pr_url})"
+    done < "$CHILD_PR_URLS_FILE"
   else
     for r in $REPOS; do
       [[ -z "$r" ]] && continue
       echo "- [\`${r}\`](https://github.com/${ORG}/${r})"
     done
-  fi
-  if [[ -n "$CHILD_PR_URLS_FILE" && -f "$CHILD_PR_URLS_FILE" && -s "$CHILD_PR_URLS_FILE" ]]; then
-    echo ""
-    echo "**Draft PRs (child repositories):**"
-    while read -r repo_name pr_url; do
-      [[ -n "$repo_name" && -n "$pr_url" ]] || continue
-      echo "- [\`${repo_name}\`](${pr_url})"
-    done < "$CHILD_PR_URLS_FILE"
   fi
   echo ""
   echo "**Files to sync:** $COUNT"

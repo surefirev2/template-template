@@ -108,7 +108,13 @@ for repo in $REPOS_LIST; do
         echo "  PR #$PR already open"
       fi
     else
-      echo "  PR #$PR already open"
+      is_draft=$(gh pr view "$PR" --repo "${ORG}/${repo}" --json isDraft -q '.isDraft' 2>/dev/null || true)
+      if [[ "$is_draft" != "true" ]]; then
+        echo '{"draft":true}' | gh api -X PATCH "repos/${ORG}/${repo}/pulls/${PR}" --input -
+        echo "  PR #$PR marked as draft"
+      else
+        echo "  PR #$PR already open (draft)"
+      fi
     fi
   fi
   if [[ -n "$CHILD_PR_URLS_FILE" && -n "$PR" && "$PR" != "null" ]]; then
