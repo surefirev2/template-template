@@ -6,3 +6,4 @@ include_paths_*.txt
 files_to_sync.txt
 files_to_sync_*.txt
 sync_diff.txt
+sync_diff_*.txt

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Upsert a sticky comment on a PR with template sync preview (target repos, file list, and diff of synced files).
-# Env: GH_TOKEN (or gh auth), REPOS (space-separated), COUNT (file count), FILES_LIST (path to file),
-#      DIFF_FILE (optional path to diff of synced files, e.g. from git diff base head -- $(cat FILES_LIST)).
+# Upsert a sticky comment on a PR with template sync preview (target repos, file list(s), and diff(s) per repo).
+# Env: GH_TOKEN, REPOS (space-separated), COUNT, FILES_LIST (union), optional FILES_LIST_TEMPLATE (files_to_sync_%s.txt),
+#      optional DIFF_FILE_TEMPLATE (sync_diff_%s.txt) for per-repo diffs; or single DIFF_FILE for backward compat.
 # Usage: template-sync-pr-comment.sh <pr_number> [--repo OWNER/REPO]
 set -euo pipefail
 
@@ -21,10 +21,33 @@ done
 REPOS="${REPOS:-none}"
 COUNT="${COUNT:-0}"
 FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
+FILES_LIST_TEMPLATE="${FILES_LIST_TEMPLATE:-}"
 DIFF_FILE="${DIFF_FILE:-}"
+DIFF_FILE_TEMPLATE="${DIFF_FILE_TEMPLATE:-}"
 # GitHub issue comment body limit is 65536 characters; leave headroom for markdown
 MAX_DIFF_CHARS=60000
 MARKER="<!-- template-sync-preview -->"
+
+append_diff_section() {
+  local path="$1"
+  local label="$2"
+  [[ -z "$path" || ! -f "$path" ]] && return
+  [[ -s "$path" ]] || return
+  echo ""
+  echo "<details><summary>${label}</summary>"
+  echo ""
+  echo '```diff'
+  if [[ $(wc -c < "$path") -gt $MAX_DIFF_CHARS ]]; then
+    head -c "$MAX_DIFF_CHARS" "$path"
+    echo ""
+    echo "... (truncated)"
+  else
+    cat "$path"
+  fi
+  echo '```'
+  echo ""
+  echo "</details>"
+}
 
 BODY_FILE=$(mktemp)
 trap 'rm -f "$BODY_FILE"' EXIT
@@ -37,7 +60,8 @@ trap 'rm -f "$BODY_FILE"' EXIT
   echo "**Target repositories:** \`${REPOS}\`"
   echo ""
   echo "**Files to sync:** $COUNT"
-  if [[ -f "$FILES_LIST" && -s "$FILES_LIST" ]]; then
+  # Single file list (union) when no per-repo template
+  if [[ -z "$FILES_LIST_TEMPLATE" && -f "$FILES_LIST" && -s "$FILES_LIST" ]]; then
     echo ""
     echo "<details><summary>File list</summary>"
     echo ""
@@ -47,21 +71,33 @@ trap 'rm -f "$BODY_FILE"' EXIT
     echo ""
     echo "</details>"
   fi
-  if [[ -n "$DIFF_FILE" && -f "$DIFF_FILE" && -s "$DIFF_FILE" ]]; then
-    echo ""
-    echo "<details><summary>Diff of synced files (base → PR head)</summary>"
-    echo ""
-    echo '```diff'
-    if [[ $(wc -c < "$DIFF_FILE") -gt $MAX_DIFF_CHARS ]]; then
-      head -c "$MAX_DIFF_CHARS" "$DIFF_FILE"
-      echo ""
-      echo "... (truncated)"
-    else
-      cat "$DIFF_FILE"
+  # Per-repo file lists and diffs when templates are set
+  if [[ -n "$FILES_LIST_TEMPLATE" || -n "$DIFF_FILE_TEMPLATE" ]]; then
+    for r in $REPOS; do
+      [[ -z "$r" ]] || [[ "$r" == "none" ]] && continue
+      if [[ -n "$FILES_LIST_TEMPLATE" ]]; then
+        fl=$(printf "$FILES_LIST_TEMPLATE" "$r")
+        if [[ -f "$fl" && -s "$fl" ]]; then
+          echo ""
+          echo "<details><summary>File list for \`$r\`</summary>"
+          echo ""
+          echo '```'
+          cat "$fl"
+          echo '```'
+          echo ""
+          echo "</details>"
+        fi
+      fi
+      if [[ -n "$DIFF_FILE_TEMPLATE" ]]; then
+        df=$(printf "$DIFF_FILE_TEMPLATE" "$r")
+        append_diff_section "$df" "Diff of synced files for \`$r\` (base → PR head)"
+      fi
+    done
+  else
+    # Single diff (backward compat)
+    if [[ -n "$DIFF_FILE" && -f "$DIFF_FILE" && -s "$DIFF_FILE" ]]; then
+      append_diff_section "$DIFF_FILE" "Diff of synced files (base → PR head)"
     fi
-    echo '```'
-    echo ""
-    echo "</details>"
   fi
   echo ""
   echo "*Actual sync runs only on push to \`main\`.*"
