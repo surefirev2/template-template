@@ -6,6 +6,7 @@
 # Env: ORG, GH_TOKEN (not required if DRY_RUN=1), BRANCH, REPOS_LIST, FILES_LIST or FILES_LIST_TEMPLATE (e.g. files_to_sync_%s.txt).
 #       GITHUB_REPOSITORY (repo running the workflow) for commit/PR attribution.
 #       PARENT_PR_NUMBER: optional; when set (e.g. when syncing from a parent PR), appended to BRANCH so one downstream PR per parent PR.
+#       PARENT_PR_URL: optional; when set, linked in child PR body (e.g. https://github.com/org/repo/pull/123).
 #       CHILD_PR_URLS_FILE: optional path to append "repo PR_URL" lines for each child PR (used by PR comment).
 # Options: --dry-run (no clone/push/pr), --draft (create PR as draft).
 # Usage: template-sync-push-pr.sh [--dry-run] [--draft]
@@ -41,6 +42,7 @@ REPOS_LIST="${REPOS_LIST:-}"
 FILES_LIST="${FILES_LIST:-files_to_sync.txt}"
 FILES_LIST_TEMPLATE="${FILES_LIST_TEMPLATE:-}"
 SOURCE_REPO="${GITHUB_REPOSITORY:-$ORG/template-template}"
+PARENT_PR_URL="${PARENT_PR_URL:-}"
 CHILD_PR_URLS_FILE="${CHILD_PR_URLS_FILE:-}"
 # Resolve to absolute path so appends work when we cd into dest_repo (otherwise file is written inside dest_repo and removed)
 [[ -n "$CHILD_PR_URLS_FILE" && "$CHILD_PR_URLS_FILE" != /* ]] && CHILD_PR_URLS_FILE="$(pwd)/$CHILD_PR_URLS_FILE"
@@ -126,17 +128,20 @@ for repo in $REPOS_LIST; do
   git push origin "${BRANCH}" --force
 
   DEFAULT_BASE=$(gh repo view "${ORG}/${repo}" --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || echo "main")
+  PR_BODY="Automated sync from $SOURCE_REPO."
+  [[ -n "${PARENT_PR_URL:-}" ]] && PR_BODY="${PR_BODY} [Parent PR](${PARENT_PR_URL})."
+  PR_BODY="${PR_BODY} Merge when checks pass."
   PR=$(gh pr list --repo "${ORG}/${repo}" --head "${BRANCH}" --json number -q '.[0].number' 2>/dev/null || true)
   if [[ -z "$PR" || "$PR" = "null" ]]; then
     if [[ -n "${DRAFT_PR}" ]]; then
       gh pr create --repo "${ORG}/${repo}" --base "${DEFAULT_BASE}" --head "${BRANCH}" \
         --title "chore(template): sync from $SOURCE_REPO" \
-        --body "Automated sync from $SOURCE_REPO. Merge when checks pass." \
+        --body "$PR_BODY" \
         --draft
     else
       gh pr create --repo "${ORG}/${repo}" --base "${DEFAULT_BASE}" --head "${BRANCH}" \
         --title "chore(template): sync from $SOURCE_REPO" \
-        --body "Automated sync from $SOURCE_REPO. Merge when checks pass."
+        --body "$PR_BODY"
     fi
     PR=$(gh pr list --repo "${ORG}/${repo}" --head "${BRANCH}" --json number -q '.[0].number' 2>/dev/null || true)
   else

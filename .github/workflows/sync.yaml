@@ -101,6 +101,7 @@ jobs:
           ORG: ${{ github.repository_owner }}
           BRANCH: chore/template-sync-${{ github.repository_owner }}-${{ github.event.repository.name }}
           PARENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          PARENT_PR_URL: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}
           REPOS_LIST: ${{ steps.config.outputs.repos_list }}
           FILES_LIST_TEMPLATE: files_to_sync_%s.txt
           DRAFT_PR: "1"
