@@ -51,12 +51,14 @@ jobs:
       - name: Resolve dependent repos and exclusions
         id: config
         env:
+          DEBUG: "1"
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: bash .github/scripts/template-sync-resolve-config.sh --config .github/template-sync.yml --org "$GITHUB_REPOSITORY_OWNER" --out-dir .
 
       - name: Build list of files to sync
         id: files
         env:
+          DEBUG: "1"
           REPOS: ${{ steps.config.outputs.repos_list }}
         run: bash .github/scripts/template-sync-ga-build-file-list.sh
 
@@ -72,6 +74,10 @@ jobs:
             # Fallback: parse default merge commit message "Merge pull request #N from ..."
             pr=$(git log -1 --pretty=%B "${{ github.sha }}" 2>/dev/null | sed -n 's/^Merge pull request #\([0-9]*\) from .*/\1/p' || true)
           fi
+          if [[ -z "$pr" || "$pr" == "null" ]]; then
+            # Fallback for squash merge: commit message often contains "(#N)" or " (#N)"
+            pr=$(git log -1 --pretty=%B "${{ github.sha }}" 2>/dev/null | sed -n 's/.*(#\([0-9]*\)).*/\1/p' | head -1)
+          fi
           if [[ -n "$pr" ]]; then
             echo "number=$pr" >> "$GITHUB_OUTPUT"
             echo "Merged PR number: $pr (will reuse draft PR branch)"
@@ -83,6 +89,7 @@ jobs:
       - name: Preview sync impact
         if: github.event_name == 'pull_request'
         env:
+          DEBUG: "1"
           REPOS: ${{ steps.config.outputs.repos_list }}
           COUNT: ${{ steps.files.outputs.count }}
         run: bash .github/scripts/template-sync-write-step-summary.sh
@@ -90,12 +97,14 @@ jobs:
       - name: Generate diff of synced files per repo (PR base → head)
         if: github.event_name == 'pull_request' && steps.files.outputs.count != '0' && steps.config.outputs.repos_list != ''
         env:
+          DEBUG: "1"
           REPOS: ${{ steps.config.outputs.repos_list }}
         run: bash .github/scripts/template-sync-generate-diffs.sh
 
       - name: Sync to dependents and open draft PR
         if: github.event_name == 'pull_request' && steps.config.outputs.repos_list != '' && steps.files.outputs.count != '0'
         env:
+          DEBUG: "1"
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           ORG: ${{ github.repository_owner }}
@@ -124,6 +133,7 @@ jobs:
       - name: Sync to dependents and open PR
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && steps.config.outputs.repos_list != '' && steps.files.outputs.count != '0'
         env:
+          DEBUG: "1"
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           ORG: ${{ github.repository_owner }}
