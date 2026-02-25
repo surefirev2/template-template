@@ -77,6 +77,7 @@ for repo in $REPOS_LIST; do
   fi
 
   echo "--- Syncing to $ORG/$repo ---"
+  echo "  File list ($(wc -l < "$FILES_LIST" 2>/dev/null || echo 0) files): $(tr '\n' ' ' < "$FILES_LIST" 2>/dev/null | sed 's/ $//')"
   rm -rf dest_repo
   git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${ORG}/${repo}.git" dest_repo
   cd dest_repo
