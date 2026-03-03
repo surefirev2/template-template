@@ -13,5 +13,6 @@ include_paths:
   - .github/workflows/dependabot-automerge.yaml
   - .github/workflows/pre-commit-update.yaml
   - .github/workflows/pre-commit.yaml
+  - .github/workflows/sync.yaml
 
 exclude_paths: []
