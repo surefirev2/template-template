@@ -13,6 +13,12 @@ include_paths:
   - .github/workflows/dependabot-automerge.yaml
   - .github/workflows/pre-commit-update.yaml
   - .github/workflows/pre-commit.yaml
-  - .github/workflows/sync.yaml
+
+# sync.yaml only for template-* repos (they run the action; others do not)
+repo_include_paths:
+  template-1-terraform:
+    - .github/workflows/sync.yaml
+  template-cursor:
+    - .github/workflows/sync.yaml
 
 exclude_paths: []
